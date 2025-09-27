@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 public class TouchInputCanvas : MonoBehaviour, IPointerClickHandler
 {
-    float touchInterval = 0.2f;
+    float touchInterval = 0.05f;
     float time = 0;
     
     public bool canClick = true;
@@ -16,13 +16,12 @@ public class TouchInputCanvas : MonoBehaviour, IPointerClickHandler
     }
 
     public void OnPointerClick(PointerEventData eventData)
-    {
-        Debug.Log("Touch");
+    {       
         if (!canClick) return;
         if (time < touchInterval) return;
 
         time = 0;
-        DialogueManager.instance.isClicked = true;
+        DialogueManager.Instance.isClicked = true;
         clicked = true;
     }
 }

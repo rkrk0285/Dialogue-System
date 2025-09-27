@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Unity.VisualScripting;
 public class DialogueManager : MonoBehaviour
 {
-    public static DialogueManager instance = null;
+    public static DialogueManager Instance = null;
 
     [Header("Canvas")]
     [SerializeField] GameObject touchInputCanvas; // 터치 입력을 받는 캔버스
@@ -22,18 +23,18 @@ public class DialogueManager : MonoBehaviour
     [Header("Sprite")]
     [SerializeField] Sprite[] characterSpriteList; // 캐릭터 스프라이트 배열
 
-    private List<Struct_Dialogue> dialogueList; // 현재 카테고리에 속한 다이얼로그를 List로 불러옴.
-    private Struct_Dialogue currentDialogue; // 현재 다이얼로그 리스트에서 진행해야할 다이얼로그
-    public bool isClicked = false; // 터치 캔버스에서 터치를 받으면 isClicked Toggle되는 형식으로 사용.
-    private Coroutine currentCoroutine = null; // 코루틴 실행되는지 확인용.
-    private int dialogueIdx = 0; // 현재 다이얼로그의 인덱스
-
+    private List<Struct_Dialogue> dialogueList;
+    private Struct_Dialogue currentDialogue;
     private TextEffect _textEffect = null; // 현재 이펙트 사용 중인 텍스트
+
+    private Coroutine currentCoroutine = null;    
+    private int dialogueIdx = 0; // 현재 다이얼로그의 인덱스
+    public bool isClicked = false; // 터치 캔버스에서 터치를 받으면 isClicked Toggle되는 형식으로 사용.        
 
     private void Awake()
     {
-        if (instance == null)
-            instance = this;
+        if (Instance == null)
+            Instance = this;
         else
             Destroy(this);
     }
@@ -53,14 +54,16 @@ public class DialogueManager : MonoBehaviour
     {
         CloseAllCanvas();
         string dialogueType = currentDialogue.GetDialogueType();
+        string text = currentDialogue.GetText();
+        string command = currentDialogue.GetCommand();
+        int skipLine = currentDialogue.GetSkipLine();
 
         // 터치 입력이 필요한 경우
         if (dialogueType == "나레이션" || 
             dialogueType == "대화" || 
             dialogueType == "")
             touchInputCanvas.SetActive(true);
-        
-        string text = currentDialogue.GetText();
+                
         // 각 케이스에 맞는 다이얼로그 처리
         switch (dialogueType)
         {
@@ -69,12 +72,16 @@ public class DialogueManager : MonoBehaviour
                 TextCanvas noticeCanvas = noticeDialogueCanvas.GetComponent<TextCanvas>();
 
                 // 텍스트 이펙트
-                _textEffect = noticeCanvas.GetEffectText();
-                _textEffect.SetText(text);
+                _textEffect = noticeCanvas.GetEffectedText();
+                noticeCanvas.SetEffectedText(text);
                 break;
             case "대화":
                 conversationDialogueCanvas.SetActive(true);
                 TextCanvas conversationCanvas = conversationDialogueCanvas.GetComponent<TextCanvas>();
+
+                // 텍스트 이펙트
+                _textEffect = conversationCanvas.GetEffectedText();
+                conversationCanvas.SetEffectedText(text);
 
                 // 캐릭터 이미지
                 Sprite characterSprite = GetCharacterSprite(currentDialogue.GetCharacter());
@@ -82,10 +89,6 @@ public class DialogueManager : MonoBehaviour
                 {
                     conversationCanvas.SetCharacterImage(characterSprite);
                 }
-
-                // 텍스트 이펙트
-                _textEffect = conversationCanvas.GetEffectText();
-                _textEffect.SetText(text);
                 break;
             case "선택지2":
             case "선택지3":
@@ -109,7 +112,16 @@ public class DialogueManager : MonoBehaviour
                     selectBox.transform.GetComponent<Button>().onClick.AddListener(() =>
                     {
                         string nextCommand = dialogueList[localIdx].GetCommand();
-                        StartDialogue(nextCommand);
+                        int nextSkipLine = dialogueList[localIdx].GetSkipLine();
+                        
+                        if (nextCommand != null)                                                    
+                            StartDialogue(nextCommand);                         
+
+                        if (nextSkipLine != 0)
+                        {
+                            dialogueIdx += nextSkipLine;
+                            isClicked = true;
+                        }
                     });
 
                     if (i != optionalCount - 1)
@@ -119,11 +131,17 @@ public class DialogueManager : MonoBehaviour
             default:
                 break;
         }
-
-        if (dialogueType != "선택지2" && dialogueType != "선택지3" && currentDialogue.command != null)
+        
+        if (dialogueType != "선택지2" && dialogueType != "선택지3")
         {
-            CallNextCommand(currentDialogue.command);
-        }
+            // 커맨드 있을 경우 실행
+            if (command != null)
+                CallNextCommand(command);
+
+            // 다이얼로그 스킵
+            if (skipLine != 0)
+                dialogueIdx += skipLine;
+        }        
     }
 
     /// <summary>
@@ -147,7 +165,7 @@ public class DialogueManager : MonoBehaviour
         dialogueIdx = 0;
 
         // 시작할 다이얼로그 불러오기.
-        dialogueList = DatabaseManager.instance.Dialogues[category];
+        dialogueList = DatabaseManager.Instance.Dialogues[category];
 
         // 대사를 토대로 코루틴 실행.
         isClicked = false;
@@ -160,7 +178,7 @@ public class DialogueManager : MonoBehaviour
     /// 다이얼로그 중단
     /// </summary>
     /// <param name="category"></param>
-    void EndDialogue()
+    private void EndDialogue()
     {
         // 해당 카테고리의 다이얼로그가 끝나면 코루틴 중단
         if (currentCoroutine != null)
@@ -202,7 +220,7 @@ public class DialogueManager : MonoBehaviour
     /// <summary>
     /// 현재 다이얼로그 리스트에서 다음 다이얼로그 출력
     /// </summary>
-    void CallNextDialogue()
+    private void CallNextDialogue()
     {
         // 현재 인덱스에 해당되는 다이얼로그 저장.
         currentDialogue = dialogueList[dialogueIdx];
@@ -216,11 +234,11 @@ public class DialogueManager : MonoBehaviour
     /// Command 컬럼 데이터 처리
     /// </summary>
     /// <param name="str"></param>
-    public void CallNextCommand(string str)
+    private void CallNextCommand(string str)
     {
         currentCoroutine = null;
         switch (str)
-        {            
+        {
             case "Intro_1":
                 StartDialogue("Intro_1");
                 break;
@@ -235,7 +253,7 @@ public class DialogueManager : MonoBehaviour
     /// </summary>
     /// <param name="character"></param>
     /// <returns></returns>
-    Sprite GetCharacterSprite(string character)
+    private Sprite GetCharacterSprite(string character)
     {
         switch (character)
         {

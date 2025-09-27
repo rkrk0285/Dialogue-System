@@ -8,7 +8,13 @@ public class TextCanvas : MonoBehaviour
     [SerializeField] private TextEffect mainText;
     [SerializeField] private Image characterImage;    
 
-    public TextEffect GetEffectText()
+    public void SetEffectedText(string _text)
+    {
+        mainText.SetText(_text);
+        mainText.OnTextChange();        
+    }
+
+    public TextEffect GetEffectedText()
     { 
         return mainText; 
     }
@@ -16,5 +22,5 @@ public class TextCanvas : MonoBehaviour
     public virtual void SetCharacterImage(Sprite sprite)
     {
         characterImage.sprite = sprite;
-    }    
+    }
 }
