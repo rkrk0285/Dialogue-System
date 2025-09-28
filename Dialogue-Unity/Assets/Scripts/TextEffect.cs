@@ -17,7 +17,7 @@ public class TextEffect : MonoBehaviour
     private StringBuilder tempStringBuilder;
     private Coroutine _currentCoroutine = null;
 
-    private const float typingInterval = 0.1f;
+    private const float typingInterval = 0.04f;
     void Awake()
     {
         text = gameObject.GetComponent<TextMeshProUGUI>();
